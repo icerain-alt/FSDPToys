@@ -140,13 +140,12 @@ def main(rank, world_size):
         )
     model = Transformer.from_model_args(simple_llama2_config)
 
+    # Device mesh for HSDP
+    mesh_2d = init_device_mesh("cuda", (world_size // args.fsdp_size, args.fsdp_size), mesh_dim_names=['dp', 'fsdp'])
+
     # Load checkpoint on cpu
     if args.checkpoint_type == "fullstate":
         load_fsdp2_model(model, rank, args.load_path, "fullstate")
-
-    # Wrap with FSDP2
-    # TODO: torch_npu patch cuda device mesh
-    mesh_2d = init_device_mesh("npu", (world_size // args.fsdp_size, args.fsdp_size), mesh_dim_names=['dp', 'fsdp'])
 
     settings = dict(
         mesh=mesh_2d,

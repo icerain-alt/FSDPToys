@@ -132,11 +132,12 @@ def main(rank, world_size):
     simple_llama2_config = ModelArgs(n_layers=32, vocab_size=32000, gradient_checkpointing=args.gradient_checkpointing)
     model = Transformer.from_model_args(simple_llama2_config)
 
+    # Device mesh for HSDP
+    mesh_2d = init_device_mesh("cuda", (world_size // args.fsdp_size, args.fsdp_size), mesh_dim_names=['dp', 'fsdp'])
+
     # Load checkpoint on cpu
     if args.checkpoint_type == "fullstate":
         load_fsdp_model(model, rank, args.load_path, "fullstate")
-
-    mesh_2d = init_device_mesh("cuda", (world_size // args.fsdp_size, args.fsdp_size), mesh_dim_names=['dp', 'fsdp'])
 
     auto_wrap_policy = ModuleWrapPolicy({TransformerBlock})
     model = FSDP(
@@ -163,7 +164,6 @@ def main(rank, world_size):
         print("\n" + "="*50, f"{'FSDP Info':^10}", "="*50)
         for name, param in model.named_parameters():
             print(f"Param name = {name}, shape = {param.size()}, dtype = {param.dtype}, requires_grad = {param.requires_grad}", flush=True)
-    
     
     # Load checkpoint on cuda
     if args.checkpoint_type == "shardstate":
