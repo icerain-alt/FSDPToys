@@ -10,6 +10,7 @@ import torch.distributed as dist
 from torch.distributed.device_mesh import init_device_mesh
 from torch.distributed.fsdp import fully_shard, MixedPrecisionPolicy, CPUOffloadPolicy
 from torch.utils.data.distributed import DistributedSampler
+from torch.distributed.checkpoint.state_dict import StateDictOptions, set_model_state_dict
 
 from llama_model import Transformer, TransformerBlock, ModelArgs
 from utils import format_metrics_to_gb, print_model_info, seed_all, save_fsdp2_model, load_fsdp2_model
@@ -140,12 +141,17 @@ def main(rank, world_size):
         )
     model = Transformer.from_model_args(simple_llama2_config)
 
+    init_device = 'cpu' if rank == 0 else 'meta'
+    with torch.device(init_device):
+        model = Transformer.from_model_args(simple_llama2_config)
+
     # Device mesh for HSDP
-    mesh_2d = init_device_mesh("cuda", (world_size // args.fsdp_size, args.fsdp_size), mesh_dim_names=['dp', 'fsdp'])
+    mesh_2d = init_device_mesh('cuda', (world_size // args.fsdp_size, args.fsdp_size), mesh_dim_names=['dp', 'fsdp'])
 
     # Load checkpoint on cpu
     if args.checkpoint_type == "fullstate":
         load_fsdp2_model(model, rank, args.load_path, "fullstate")
+        full_state_dict = model.state_dict()
 
     settings = dict(
         mesh=mesh_2d,
@@ -159,6 +165,14 @@ def main(rank, world_size):
         if isinstance(module, TransformerBlock):
             fully_shard(module, **settings)
     fully_shard(model, **settings)
+
+    if args.checkpoint_type == "fullstate":
+        # Loads the full state dict (could be only on rank 0) into the sharded model
+        options = StateDictOptions(full_state_dict=True, cpu_offload=args.cpu_offload, broadcast_from_rank0=True)
+        set_model_state_dict(model, full_state_dict, options=options)
+        # rotary_emb is not in state_dict, so we need to broadcast it manually
+        for name, buf in model.named_buffers():
+            dist.broadcast(buf, src=0)
 
     # Load checkpoint on cuda
     if args.checkpoint_type == "shardstate":
