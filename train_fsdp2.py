@@ -170,9 +170,6 @@ def main(rank, world_size):
         # Loads the full state dict (could be only on rank 0) into the sharded model
         options = StateDictOptions(full_state_dict=True, cpu_offload=args.cpu_offload, broadcast_from_rank0=True)
         set_model_state_dict(model, full_state_dict, options=options)
-        # rotary_emb is not in state_dict, so we need to broadcast it manually
-        for name, buf in model.named_buffers():
-            dist.broadcast(buf, src=0)
 
     # Load checkpoint on cuda
     if args.checkpoint_type == "shardstate":
