@@ -181,6 +181,12 @@ class Attention(nn.Module):
         output = output.view(bsz, seqlen, -1)
         return self.wo(output)
 
+    def reset_parameters(self):
+        self.wq.reset_parameters()
+        self.wk.reset_parameters()
+        self.wv.reset_parameters()
+        self.wo.reset_parameters()
+
 class FeedForward(nn.Module):
     """
     FeedForward module
@@ -223,6 +229,11 @@ class FeedForward(nn.Module):
         nn.init.trunc_normal_(self.w1.weight, mean=0.0, std=0.02)
         for linear in (self.w2, self.w3):
             nn.init.trunc_normal_(linear.weight, mean=0.0, std=init_std)
+
+    def reset_parameters(self):
+        self.w1.reset_parameters()
+        self.w2.reset_parameters()
+        self.w3.reset_parameters()
 
 class TransformerBlock(nn.Module):
     """
@@ -295,6 +306,12 @@ class TransformerBlock(nn.Module):
             norm.reset_parameters()
         self.attention.init_weights(self.weight_init_std)
         self.feed_forward.init_weights(self.weight_init_std)
+
+    def reset_parameters(self):
+        self.attention_norm.reset_parameters()
+        self.attention.reset_parameters()
+        self.ffn_norm.reset_parameters()
+        self.feed_forward.reset_parameters()
 
 class Transformer(nn.Module):
     """
@@ -416,3 +433,8 @@ class Transformer(nn.Module):
 
         """
         return cls(model_args)
+
+    def reset_parameters(self):
+        self.tok_embeddings.reset_parameters()
+        self.norm.reset_parameters()
+        self.output.reset_parameters()

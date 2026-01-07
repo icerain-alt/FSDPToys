@@ -135,10 +135,13 @@ def main(rank, world_size):
         gradient_checkpointing=args.gradient_checkpointing,
         checkpointing_start_index=args.checkpointing_start_index,
         )
-    model = Transformer.from_model_args(simple_llama2_config)
+    
+    init_device = 'cpu' if rank == 0 else 'meta'
+    with torch.device(init_device):
+        model = Transformer.from_model_args(simple_llama2_config)
 
     # Device mesh for HSDP
-    mesh_2d = init_device_mesh("cuda", (world_size // args.fsdp_size, args.fsdp_size), mesh_dim_names=['dp', 'fsdp'])
+    mesh_2d = init_device_mesh('cuda', (world_size // args.fsdp_size, args.fsdp_size), mesh_dim_names=['dp', 'fsdp'])
 
     # Load checkpoint on cpu
     if args.checkpoint_type == "fullstate":
