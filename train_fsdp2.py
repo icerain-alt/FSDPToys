@@ -172,7 +172,7 @@ def main(rank, world_size):
             print(f"Param name = {name}, shape = {param.size()}, dtype = {param.dtype}, requires_grad = {param.requires_grad}", flush=True)
     
     # Training setup
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, foreach=True)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, fused=True)
 
     # Training loop
     for epoch in range(args.num_epochs):

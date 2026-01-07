@@ -175,7 +175,7 @@ def main(rank, world_size):
         load_fsdp_model(model, rank, args.load_path, "shardstate")
     
     # Training setup
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, foreach=True)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, fused=True)
     
     # Training loop
     for epoch in range(args.num_epochs):
