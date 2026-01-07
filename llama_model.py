@@ -33,7 +33,7 @@ class ModelArgs:
 
 def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0):
     """
-    Precompute the frequency tensor for complex exponentials (cis) with given dimensions.
+    Precompute the frequency tensor with given dimensions.
 
     This function calculates a frequency tensor with complex exponentials using the given dimension 'dim'
     and the end index 'end'. The 'theta' parameter scales the frequencies.
@@ -45,7 +45,7 @@ def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0):
         theta (float, optional): Scaling factor for frequency computation. Defaults to 10000.0.
 
     Returns:
-        torch.Tensor: Precomputed frequency tensor with complex exponentials.
+        torch.Tensor: Precomputed frequency tensor\.
     """
     freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
     t = torch.arange(end, device=freqs.device)
@@ -71,17 +71,6 @@ def apply_rotary_emb(
     xq_out = (xq.float() * cos) + (rotate_half(xq.float()) * sin)
     xk_out = (xk.float() * cos) + (rotate_half(xk.float()) * sin)
     return xq_out.type_as(xq), xk_out.type_as(xk)
-
-def repeat_kv(x: torch.Tensor, n_rep: int) -> torch.Tensor:
-    """torch.repeat_interleave(x, dim=2, repeats=n_rep)"""
-    bs, slen, n_kv_heads, head_dim = x.shape
-    if n_rep == 1:
-        return x
-    return (
-        x[:, :, :, None, :]
-        .expand(bs, slen, n_kv_heads, n_rep, head_dim)
-        .reshape(bs, slen, n_kv_heads * n_rep, head_dim)
-    )
 
 class RMSNorm(nn.Module):
     """
