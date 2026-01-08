@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 
 import torch
+import torch_npu
 from torch import nn
 import torch.nn.functional as F
 from utils import gradient_checkpointing
@@ -68,8 +69,8 @@ def apply_rotary_emb(
     """
     cos = freqs_cis.cos().unsqueeze(0).unsqueeze(2)
     sin = freqs_cis.cos().unsqueeze(0).unsqueeze(2)
-    xq_out = (xq.float() * cos) + (rotate_half(xq.float()) * sin)
-    xk_out = (xk.float() * cos) + (rotate_half(xk.float()) * sin)
+    xq_out = torch_npu.npu_rotary_mul(xq.float(), cos, sin)
+    xk_out = torch_npu.npu_rotary_mul(xk.float(), cos, sin)
     return xq_out.type_as(xq), xk_out.type_as(xk)
 
 class RMSNorm(nn.Module):
@@ -171,13 +172,17 @@ class Attention(nn.Module):
 
         xq, xk = apply_rotary_emb(xq, xk, freqs_cis=freqs_cis)
 
-        xq = xq.transpose(1, 2)  # (bs, n_local_heads, seqlen, head_dim)
-        xk = xk.transpose(1, 2)  # (bs, n_local_heads, seqlen, head_dim)
-        xv = xv.transpose(1, 2)  # (bs, n_local_heads, seqlen, head_dim)
+        attn_mask_npu = torch.triu(torch.ones([2048, 2048], dtype=torch.bool, device=xq.device), diagonal=1)
+        output = torch_npu.npu_fusion_attention(
+            xq, xk, xv,
+            xq.shape[2],
+            "BSND",
+            keep_prob=1.0,
+            atten_mask=attn_mask_npu,
+            scale=xq.shape[-1] ** -0.5,
+            sparse_mode=3
+        )[0]
 
-        # we use casual mask for training
-        output = F.scaled_dot_product_attention(xq, xk, xv, is_causal=True, enable_gqa=True)
-        output = output.transpose(1, 2).contiguous()  # (bs, seqlen, n_local_heads, head_dim)
         output = output.view(bsz, seqlen, -1)
         return self.wo(output)
 
