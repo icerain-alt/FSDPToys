@@ -139,7 +139,6 @@ def main(rank, world_size):
         gradient_checkpointing=args.gradient_checkpointing,
         checkpointing_start_index=args.checkpointing_start_index,
         )
-    model = Transformer.from_model_args(simple_llama2_config)
 
     init_device = 'cpu' if rank == 0 else 'meta'
     with torch.device(init_device):
