@@ -144,8 +144,7 @@ def main(rank, world_size):
     mesh_2d = init_device_mesh('cuda', (world_size // args.fsdp_size, args.fsdp_size), mesh_dim_names=['dp', 'fsdp'])
 
     # Load checkpoint on cpu
-    if args.checkpoint_type == "fullstate":
-        load_fsdp_model(model, rank, args.load_path, "fullstate")
+    load_fsdp_model(model, rank, args.load_path, "fullstate")
 
     auto_wrap_policy = ModuleWrapPolicy({TransformerBlock})
     model = FSDP(
@@ -173,10 +172,6 @@ def main(rank, world_size):
         for name, param in model.named_parameters():
             print(f"Param name = {name}, shape = {param.size()}, dtype = {param.dtype}, requires_grad = {param.requires_grad}", flush=True)
     
-    # Load checkpoint on cuda
-    if args.checkpoint_type == "shardstate":
-        load_fsdp_model(model, rank, args.load_path, "shardstate")
-    
     # Training setup
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, fused=True)
     
@@ -187,7 +182,7 @@ def main(rank, world_size):
 
         if (epoch + 1) % args.save_freq == 0:
             os.makedirs(f"{args.save_path}/llama_checkpoint_epoch{epoch}", exist_ok=True)
-            save_fsdp_model(model, rank, f"{args.save_path}/llama_checkpoint_epoch{epoch}", args.checkpoint_type)   
+            save_fsdp_model(model, rank, f"{args.save_path}/llama_checkpoint_epoch{epoch}", "fullstate")   
     
     # Cleanup
     dist.destroy_process_group()

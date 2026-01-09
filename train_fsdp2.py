@@ -30,14 +30,12 @@ def get_args():
     parser.add_argument("--seq_len", type=int, default=1024, help="Input sequence length")
     parser.add_argument("--fsdp_size", type=int, default=8, help="Sharding size for HSDP(Hybrid Sharding)")
     parser.add_argument("--cpu_offload", type=bool, default=False, help="Offload model params, grads and optimizer states to CPU")
-    parser.add_argument("--gradient_checkpointing", type=bool, default=False, help="Enable gradient checkpointing")
+    parser.add_argument("--gradient_checkpointing", type=bool, default=True, help="Enable gradient checkpointing")
     parser.add_argument("--checkpointing_start_index", type=int, default=0, help="Checkpointing start from which layer")
-    parser.add_argument('--load_path', type=str, default='ckpts/fsdp2_full/llama_checkpoint_epoch0', 
+    parser.add_argument('--load_path', type=str, default='ckpts/fsdp2/llama_checkpoint', 
                        help="Checkpoint loading path")
-    parser.add_argument("--save_path", type=str, default="ckpts/fsdp2_full_new", help="Checkpoint saving path")
+    parser.add_argument("--save_path", type=str, default="ckpts/fsdp2", help="Checkpoint saving path")
     parser.add_argument("--save_freq", type=int, default=1, help="Checkpoint saving frequency (in epochs)")
-    parser.add_argument("--checkpoint_type", type=str, default="fullstate", 
-                       choices=["fullstate", "shardstate"], help="Type of checkpoint to load and save")
     parser.add_argument("--profile", type=bool, default=False, help="NPU profiling for performance analysis")
     
     args = parser.parse_args()
@@ -73,9 +71,9 @@ def train_one_epoch(model, loader, optimizer, epoch, rank, args):
 
     for batch_idx, (inputs, labels) in enumerate(loader):
         t0 = time.time()
-        inputs = inputs.cuda()
-        
-        outputs = model(inputs.reshape(-1, args.seq_len))   
+        inputs = inputs.reshape(-1, args.seq_len)
+
+        outputs = model(inputs)   
         loss = outputs.mean()
 
         loss.backward()
@@ -148,9 +146,8 @@ def main(rank, world_size):
     mesh_2d = init_device_mesh('cuda', (world_size // args.fsdp_size, args.fsdp_size), mesh_dim_names=['dp', 'fsdp'])
 
     # Load checkpoint on cpu
-    if args.checkpoint_type == "fullstate":
-        load_fsdp2_model(model, rank, args.load_path, "fullstate")
-        full_state_dict = model.state_dict()
+    load_fsdp2_model(model, rank, args.load_path, "fullstate")
+    full_state_dict = model.state_dict()
 
     settings = dict(
         mesh=mesh_2d,
@@ -165,14 +162,9 @@ def main(rank, world_size):
             fully_shard(module, **settings)
     fully_shard(model, **settings)
 
-    if args.checkpoint_type == "fullstate":
-        # Loads the full state dict (could be only on rank 0) into the sharded model
-        options = StateDictOptions(full_state_dict=True, cpu_offload=args.cpu_offload, broadcast_from_rank0=True)
-        set_model_state_dict(model, full_state_dict, options=options)
-
-    # Load checkpoint on cuda
-    if args.checkpoint_type == "shardstate":
-        load_fsdp2_model(model, rank, args.load_path, "shardstate")
+    # Loads the full state dict (could be only on rank 0) into the sharded model
+    options = StateDictOptions(full_state_dict=True, cpu_offload=args.cpu_offload, broadcast_from_rank0=True)
+    set_model_state_dict(model, full_state_dict, options=options)
 
     # Print model info on rank 0
     if rank == 0:
@@ -191,7 +183,7 @@ def main(rank, world_size):
 
         if (epoch + 1) % args.save_freq == 0:
             os.makedirs(f"{args.save_path}/llama_checkpoint_epoch{epoch}", exist_ok=True)
-            save_fsdp2_model(model, rank, f"{args.save_path}/llama_checkpoint_epoch{epoch}", args.checkpoint_type)   
+            save_fsdp2_model(model, rank, f"{args.save_path}/llama_checkpoint_epoch{epoch}", "fullstate")   
         
     # Cleanup
     dist.destroy_process_group()
