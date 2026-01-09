@@ -77,17 +77,17 @@ def get_args():
     )
     parser.add_argument(
         "--cpu_offload",
-        action='store_true',
+        action="store_true",
         help="Offload model params, grads and optimizer states to CPU (default: False)",
     )
     parser.add_argument(
         "--gradient_checkpointing",
-        action='store_true',
+        action="store_true",
         help="Enable gradient checkpointing (default: False)",
     )
     parser.add_argument(
         "--profile",
-        action='store_true',
+        action="store_true",
         help="NPU profiling for performance analysis (default: False)",
     )
 
@@ -224,12 +224,21 @@ def main(rank, world_size):
             fully_shard(module, **settings)
     fully_shard(model, **settings)
 
+    # To broadcast, it needs to be initialized on the GPU.
+    if args.cpu_offload:
+        if rank == 0:
+            model = model.to(device="cuda", non_blocking=True)
+        else:
+            model = model.to_empty(device="cuda")
     # Loads the full state dict (could be only on rank 0) into the sharded model
     options = StateDictOptions(
         full_state_dict=True, cpu_offload=args.cpu_offload, broadcast_from_rank0=True
     )
     set_model_state_dict(model, full_state_dict, options=options)
     del full_state_dict
+
+    if args.cpu_offload:
+        model.to("cpu", non_blocking=True)
 
     # Print model info on rank 0
     if rank == 0:

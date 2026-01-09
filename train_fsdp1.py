@@ -83,17 +83,17 @@ def get_args():
     )
     parser.add_argument(
         "--cpu_offload",
-        action='store_true',
+        action="store_true",
         help="Offload model params, grads and optimizer states to CPU (default: False)",
     )
     parser.add_argument(
         "--gradient_checkpointing",
-        action='store_true',
+        action="store_true",
         help="Enable gradient checkpointing (default: False)",
     )
     parser.add_argument(
         "--profile",
-        action='store_true',
+        action="store_true",
         help="NPU profiling for performance analysis (default: False)",
     )
 
