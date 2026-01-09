@@ -32,18 +32,15 @@ def get_args():
     parser.add_argument("--num_epochs", type=int, default=100, help="Total training epochs")
     parser.add_argument("--workers", type=int, default=4, help="Number of data loading workers")
     parser.add_argument("--lr", type=float, default=1e-5, help="Learning rate")
-    parser.add_argument('--seed', type=int, default=421, help="Random seed for reproducibility")
+    parser.add_argument("--seed", type=int, default=421, help="Random seed for reproducibility")
     parser.add_argument("--seq_len", type=int, default=1024, help="Input sequence length")
     parser.add_argument("--fsdp_size", type=int, default=8, help="Sharding size for HSDP(Hybrid Sharding)")
     parser.add_argument("--cpu_offload", type=bool, default=False, help="Offload model params, grads and optimizer states to CPU")
     parser.add_argument("--gradient_checkpointing", type=bool, default=False, help="Enable gradient checkpointing")
     parser.add_argument("--checkpointing_start_index", type=int, default=0, help="Gradient checkpointing start index")
-    parser.add_argument('--load_path', type=str, default='ckpts/fsdp1_full/llama_checkpoint_epoch0', 
-                       help="Checkpoint loading path")
+    parser.add_argument("--load_path", type=str, default='ckpts/fsdp1_full/llama_checkpoint_epoch0', help="Checkpoint loading path")
     parser.add_argument("--save_path", type=str, default="ckpts/fsdp1_full", help="Checkpoint saving path")
     parser.add_argument("--save_freq", type=int, default=1, help="Checkpoint saving frequency (in epochs)")
-    parser.add_argument("--checkpoint_type", type=str, default="fullstate", 
-                       choices=["fullstate", "shardstate"], help="Type of checkpoint to load and save")
     parser.add_argument("--profile", type=bool, default=False, help="NPU profiling for performance analysis")
     
     args = parser.parse_args()
