@@ -67,7 +67,7 @@ def apply_rotary_emb(
     Applies Rotary Position Embedding to the query and key tensors.
     """
     cos = freqs_cis.cos().unsqueeze(0).unsqueeze(2)
-    sin = freqs_cis.cos().unsqueeze(0).unsqueeze(2)
+    sin = freqs_cis.sin().unsqueeze(0).unsqueeze(2)
     xq_out = (xq.float() * cos) + (rotate_half(xq.float()) * sin)
     xk_out = (xk.float() * cos) + (rotate_half(xk.float()) * sin)
     return xq_out.type_as(xq), xk_out.type_as(xk)
