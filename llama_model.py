@@ -31,6 +31,7 @@ class ModelArgs:
     gradient_checkpointing: bool = True
     checkpointing_start_index: int = 0
 
+
 def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0):
     """
     Precompute the frequency tensor with given dimensions.
@@ -52,11 +53,13 @@ def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0):
     freqs = torch.outer(t, freqs).float()
     return torch.cat([freqs, freqs], dim=-1)
 
+
 def rotate_half(x):
     """Rotates half the hidden dims of the input."""
     x1 = x[..., : x.shape[-1] // 2]
     x2 = x[..., x.shape[-1] // 2 :]
     return torch.cat((-x2, x1), dim=-1)
+
 
 def apply_rotary_emb(
     xq: torch.Tensor,
@@ -71,6 +74,7 @@ def apply_rotary_emb(
     xq_out = (xq.float() * cos) + (rotate_half(xq.float()) * sin)
     xk_out = (xk.float() * cos) + (rotate_half(xk.float()) * sin)
     return xq_out.type_as(xq), xk_out.type_as(xk)
+
 
 class RMSNorm(nn.Module):
     """
@@ -100,6 +104,7 @@ class RMSNorm(nn.Module):
 
     def reset_parameters(self):
         torch.nn.init.ones_(self.weight)  # type: ignore
+
 
 class Attention(nn.Module):
     """
@@ -176,8 +181,12 @@ class Attention(nn.Module):
         xv = xv.transpose(1, 2)  # (bs, n_local_heads, seqlen, head_dim)
 
         # we use casual mask for training
-        output = F.scaled_dot_product_attention(xq, xk, xv, is_causal=True, enable_gqa=True)
-        output = output.transpose(1, 2).contiguous()  # (bs, seqlen, n_local_heads, head_dim)
+        output = F.scaled_dot_product_attention(
+            xq, xk, xv, is_causal=True, enable_gqa=True
+        )
+        output = output.transpose(
+            1, 2
+        ).contiguous()  # (bs, seqlen, n_local_heads, head_dim)
         output = output.view(bsz, seqlen, -1)
         return self.wo(output)
 
@@ -186,6 +195,7 @@ class Attention(nn.Module):
         self.wk.reset_parameters()
         self.wv.reset_parameters()
         self.wo.reset_parameters()
+
 
 class FeedForward(nn.Module):
     """
@@ -235,6 +245,7 @@ class FeedForward(nn.Module):
         self.w2.reset_parameters()
         self.w3.reset_parameters()
 
+
 class TransformerBlock(nn.Module):
     """
     TransformerBlock Module
@@ -269,12 +280,8 @@ class TransformerBlock(nn.Module):
         self.layer_id = layer_id
         self.num_layers = model_args.n_layers
 
-        self.attention_norm = RMSNorm(
-            dim=model_args.dim, eps=model_args.norm_eps
-        )
-        self.ffn_norm = RMSNorm(
-            dim=model_args.dim, eps=model_args.norm_eps
-        )
+        self.attention_norm = RMSNorm(dim=model_args.dim, eps=model_args.norm_eps)
+        self.ffn_norm = RMSNorm(dim=model_args.dim, eps=model_args.norm_eps)
 
         if model_args.depth_init:
             self.weight_init_std = 0.02 / (2 * (self.layer_id + 1)) ** 0.5
@@ -312,6 +319,7 @@ class TransformerBlock(nn.Module):
         self.attention.reset_parameters()
         self.ffn_norm.reset_parameters()
         self.feed_forward.reset_parameters()
+
 
 class Transformer(nn.Module):
     """
@@ -353,9 +361,7 @@ class Transformer(nn.Module):
         for layer_id in range(model_args.n_layers):
             self.layers.append(TransformerBlock(layer_id, model_args))
 
-        self.norm = RMSNorm(
-            dim=model_args.dim, eps=model_args.norm_eps
-        )
+        self.norm = RMSNorm(dim=model_args.dim, eps=model_args.norm_eps)
 
         self.output = nn.Linear(model_args.dim, model_args.vocab_size, bias=False)
         self.init_weights()
@@ -411,11 +417,12 @@ class Transformer(nn.Module):
 
         for i, layer in enumerate(self.layers):
             h = gradient_checkpointing(
-                module=layer, 
+                module=layer,
                 x=h,
-                freqs_cis=freqs_cis, 
-                enabled=self.model_args.gradient_checkpointing and (i >= self.model_args.checkpointing_start_index)
-                )
+                freqs_cis=freqs_cis,
+                enabled=self.model_args.gradient_checkpointing
+                and (i >= self.model_args.checkpointing_start_index),
+            )
         h = self.norm(h)
         output = self.output(h)
         return output
