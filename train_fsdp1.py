@@ -52,18 +52,6 @@ def get_args():
         help="Sharding size for HSDP(Hybrid Sharding)",
     )
     parser.add_argument(
-        "--cpu_offload",
-        type=bool,
-        default=False,
-        help="Offload model params, grads and optimizer states to CPU",
-    )
-    parser.add_argument(
-        "--gradient_checkpointing",
-        type=bool,
-        default=False,
-        help="Enable gradient checkpointing",
-    )
-    parser.add_argument(
         "--checkpointing_start_index",
         type=int,
         default=0,
@@ -88,16 +76,25 @@ def get_args():
         help="Checkpoint saving frequency (in epochs)",
     )
     parser.add_argument(
-        "--profile",
-        type=bool,
-        default=False,
-        help="NPU profiling for performance analysis",
-    )
-    parser.add_argument(
         "--profile_path",
         type=str,
         default="profile/llama_7b_fsdp1_base",
         help="NPU profiling path",
+    )
+    parser.add_argument(
+        "--cpu_offload",
+        action='store_true',
+        help="Offload model params, grads and optimizer states to CPU (default: False)",
+    )
+    parser.add_argument(
+        "--gradient_checkpointing",
+        action='store_true',
+        help="Enable gradient checkpointing (default: False)",
+    )
+    parser.add_argument(
+        "--profile",
+        action='store_true',
+        help="NPU profiling for performance analysis (default: False)",
     )
 
     args = parser.parse_args()
