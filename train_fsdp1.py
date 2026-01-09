@@ -93,6 +93,12 @@ def get_args():
         default=False,
         help="NPU profiling for performance analysis",
     )
+    parser.add_argument(
+        "--profile_path",
+        type=str,
+        default="profile/llama_7b_fsdp1_base",
+        help="NPU profiling path",
+    )
 
     args = parser.parse_args()
 
@@ -124,7 +130,7 @@ def train_one_epoch(model, loader, optimizer, epoch, rank, args):
                 wait=0, warmup=1, active=1, repeat=1, skip_first=10
             ),
             on_trace_ready=torch_npu.profiler.tensorboard_trace_handler(
-                "profile/llama_7b_fsdp1_base"
+                args.profile_path
             ),
         )
         profiler.start()
