@@ -5,11 +5,7 @@ import torchvision.datasets as datasets
 import torchvision.transforms as T
 
 from models.llama2 import Transformer, ModelArgs
-from utils import (
-    format_metrics_to_gb,
-    print_model_info,
-    seed_all
-)
+from utils import format_metrics_to_gb, print_model_info, seed_all
 
 
 def get_args():

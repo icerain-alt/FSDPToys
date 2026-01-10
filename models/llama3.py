@@ -99,7 +99,6 @@ class Attention(nn.Module):
             bias=False,
         )
 
-
     def forward(
         self,
         x: torch.Tensor,
@@ -206,14 +205,14 @@ class Transformer(nn.Module):
         _bsz, seqlen = tokens.shape
         h = self.tok_embeddings(tokens)
         self.freqs_cis = self.freqs_cis.to(h.device)
-        freqs_cis = self.freqs_cis[: seqlen]
+        freqs_cis = self.freqs_cis[:seqlen]
 
         for layer in self.layers:
             h = layer(h, freqs_cis)
         h = self.norm(h)
         output = self.output(h).float()
         return output
-    
+
     @classmethod
     def from_model_args(cls, model_args: ModelArgs) -> "Transformer":
         """
