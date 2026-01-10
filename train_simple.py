@@ -90,9 +90,9 @@ def main():
     )
 
     # Build model
-    simple_llama2_config = ModelArgs(n_layers=2, vocab_size=10000)
+    simple_llama3_config = ModelArgs(n_layers=2, vocab_size=10000)
 
-    model = Transformer.from_model_args(simple_llama2_config).cuda()
+    model = Transformer.from_model_args(simple_llama3_config).cuda()
 
     print_model_info(model)
 
