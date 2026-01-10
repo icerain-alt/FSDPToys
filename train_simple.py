@@ -4,7 +4,7 @@ import torch
 import torchvision.datasets as datasets
 import torchvision.transforms as T
 
-from models.llama2 import Transformer, ModelArgs
+from models.llama3 import Transformer, ModelArgs
 from utils import format_metrics_to_gb, print_model_info, seed_all
 
 
@@ -90,12 +90,7 @@ def main():
     )
 
     # Build model
-    simple_llama2_config = ModelArgs(
-        n_layers=2,
-        vocab_size=10000,
-        gradient_checkpointing=args.gradient_checkpointing,
-        checkpointing_start_index=args.checkpointing_start_index,
-    )
+    simple_llama2_config = ModelArgs(n_layers=2, vocab_size=10000)
 
     model = Transformer.from_model_args(simple_llama2_config).cuda()
 
