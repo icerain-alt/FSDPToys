@@ -28,7 +28,7 @@ class ModelArgs:
     depth_init: bool = True
 
     # Gradient checkpointing
-    gradient_checkpointing: bool = True
+    gradient_checkpointing: bool = False
     checkpointing_start_index: int = 0
 
 

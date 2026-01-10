@@ -4,7 +4,7 @@ import torch
 import torchvision.datasets as datasets
 import torchvision.transforms as T
 
-from models.llama3 import Transformer, ModelArgs
+from models.llama2 import Transformer, ModelArgs
 from utils import format_metrics_to_gb, print_model_info, seed_all
 
 
@@ -23,7 +23,7 @@ def get_args():
         "--seed", type=int, default=421, help="Random seed for reproducibility"
     )
     parser.add_argument(
-        "--seq_len", type=int, default=128, help="Input sequence length"
+        "--seq_len", type=int, default=1024, help="Input sequence length"
     )
     parser.add_argument(
         "--checkpointing_start_index",
@@ -90,7 +90,9 @@ def main():
     )
 
     # Build model
-    simple_llama3_config = ModelArgs(n_layers=2, vocab_size=10000)
+    simple_llama3_config = ModelArgs(
+        n_layers=2, vocab_size=10000, gradient_checkpointing=args.gradient_checkpointing
+    )
 
     model = Transformer.from_model_args(simple_llama3_config).cuda()
 
