@@ -13,7 +13,7 @@ from torch.distributed.checkpoint.state_dict import (
     set_model_state_dict,
 )
 
-from llama_model import Transformer, TransformerBlock, ModelArgs
+from models.llama2 import Transformer, TransformerBlock, ModelArgs
 from utils import (
     format_metrics_to_gb,
     print_model_info,

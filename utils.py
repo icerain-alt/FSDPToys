@@ -1,8 +1,6 @@
-      
 import os
 import random
 import torch
-import torch_npu
 import numpy as np
 from torch.distributed.tensor import DTensor
 from torch.distributed.fsdp import (
@@ -16,21 +14,28 @@ from torch.utils.checkpoint import checkpoint
 
 g_gigabyte = 1024**3
 
+
 def print_rank0(msg):
     if torch.distributed.get_rank() == 0:
         print(msg, flush=True)
 
+
 def seed_all(seed=1234, mode=False):
     random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-
-    os.environ['HCCL_DETERMINISTIC'] = str(mode)
     torch.use_deterministic_algorithms(mode)
 
-    torch_npu.npu.manual_seed_all(seed)
-    torch_npu.npu.manual_seed(seed)
+    try:
+        import torch_npu
+
+        torch_npu.npu.manual_seed_all(seed)
+        torch_npu.npu.manual_seed(seed)
+        os.environ["HCCL_DETERMINISTIC"] = str(mode)
+    except ImportError:
+        print("NPU backend not available.")
+
 
 def format_metrics_to_gb(item):
     """quick function to format numbers to gigabyte and round to 4 digit precision"""
@@ -38,16 +43,17 @@ def format_metrics_to_gb(item):
     metric_num = round(metric_num, ndigits=4)
     return metric_num
 
+
 def print_model_info(model):
-    print("="*50, f"{'Model Structure':^10}", "="*50)
+    print("=" * 50, f"{'Model Structure':^10}", "=" * 50)
     print(model)
-    
+
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    
-    print("\n" + "="*50, f"{'Parameter Info':^10}", "="*50)
-    print(f"Total Parameters: {total_params/1e6:.2f}M")
-    print(f"Trainable Parameters: {trainable_params/1e6:.2f}M")
+
+    print("\n" + "=" * 50, f"{'Parameter Info':^10}", "=" * 50)
+    print(f"Total Parameters: {total_params / 1e6:.2f}M")
+    print(f"Trainable Parameters: {trainable_params / 1e6:.2f}M")
 
 
 def gradient_checkpointing(module, *args, enabled, **kwargs):
@@ -77,18 +83,18 @@ def set_modules_to_backward_prefetch(model, num_to_backward_prefetch=1):
             model.layers[i - j] for j in range(1, num_to_backward_prefetch + 1)
         ]
         layer.set_modules_to_backward_prefetch(layers_to_prefetch)
-    
-    
+
+
 def save_fsdp_model(model, rank, save_path, ckpt_type="fullstate"):
     if ckpt_type == "fullstate":
         with FSDP.state_dict_type(
             module=model,
             state_dict_type=StateDictType.FULL_STATE_DICT,
-            state_dict_config=FullStateDictConfig(offload_to_cpu=True, rank0_only=True)
+            state_dict_config=FullStateDictConfig(offload_to_cpu=True, rank0_only=True),
         ):
             cpu_state = model.state_dict()
         if rank == 0:
-            print(f"--> saving full model ...")
+            print("--> saving full model ...")
             torch.save(cpu_state, f"{save_path}/fullstate.pth")
     elif ckpt_type == "shardstate":
         with FSDP.state_dict_type(
@@ -97,7 +103,7 @@ def save_fsdp_model(model, rank, save_path, ckpt_type="fullstate"):
             state_dict_config=ShardedStateDictConfig(offload_to_cpu=True),
         ):
             state_dict = model.state_dict()
-        print_rank0(f"--> saving sharded model ...")
+        print_rank0("--> saving sharded model ...")
         torch.save(state_dict, f"{save_path}/rank{rank}.pth")
     else:
         raise ValueError(f"Unknown checkpoint type: {ckpt_type}")
@@ -109,8 +115,10 @@ def load_fsdp_model(model, rank, load_path, ckpt_type="fullstate"):
     if os.path.exists(load_path):
         if ckpt_type == "fullstate":
             if rank == 0:
-                model.load_state_dict(torch.load(f"{load_path}/fullstate.pth", map_location="cpu"))
-                print_rank0(f"model checkpoint loaded to rank0 cpu")
+                model.load_state_dict(
+                    torch.load(f"{load_path}/fullstate.pth", map_location="cpu")
+                )
+                print_rank0("model checkpoint loaded to rank0 cpu")
         elif ckpt_type == "shardstate":
             with FSDP.state_dict_type(model, StateDictType.SHARDED_STATE_DICT):
                 model.load_state_dict(torch.load(f"{load_path}/rank{rank}.pth"))
@@ -118,7 +126,9 @@ def load_fsdp_model(model, rank, load_path, ckpt_type="fullstate"):
         else:
             raise ValueError(f"Unknown checkpoint type: {ckpt_type}")
     else:
-        print_rank0(f"Checkpoint {load_path} does not exist. Starting training from scratch.")
+        print_rank0(
+            f"Checkpoint {load_path} does not exist. Starting training from scratch."
+        )
 
 
 def save_fsdp2_model(model, rank, save_path, ckpt_type="fullstate"):
@@ -136,11 +146,11 @@ def save_fsdp2_model(model, rank, save_path, ckpt_type="fullstate"):
             else:
                 del full_param
         if rank == 0:
-            print(f"--> saving full model ...")
+            print("--> saving full model ...")
             torch.save(cpu_state_dict, f"{save_path}/fullstate.pth")
 
     elif ckpt_type == "shardstate":
-        print_rank0(f"--> saving sharded model ...")
+        print_rank0("--> saving sharded model ...")
         torch.save(model.state_dict(), f"{save_path}/rank{rank}.pth")
     else:
         raise ValueError(f"Unknown checkpoint type: {ckpt_type}")
@@ -152,13 +162,16 @@ def load_fsdp2_model(model, rank, load_path, ckpt_type="fullstate"):
     if os.path.exists(load_path):
         if ckpt_type == "fullstate":
             if rank == 0:
-                model.load_state_dict(torch.load(f"{load_path}/fullstate.pth", map_location="cpu"))
-                print_rank0(f"model checkpoint loaded to rank0 cpu")
+                model.load_state_dict(
+                    torch.load(f"{load_path}/fullstate.pth", map_location="cpu")
+                )
+                print_rank0("model checkpoint loaded to rank0 cpu")
         elif ckpt_type == "shardstate":
             model.load_state_dict(torch.load(f"{load_path}/rank{rank}.pth"))
             print_rank0(f"--> sharded state loaded on rank {rank}")
         else:
             raise ValueError(f"Unknown checkpoint type: {ckpt_type}")
     else:
-        print_rank0(f"Checkpoint {load_path} does not exist. Starting training from scratch.")
-    
+        print_rank0(
+            f"Checkpoint {load_path} does not exist. Starting training from scratch."
+        )

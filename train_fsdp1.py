@@ -16,7 +16,7 @@ from torch.distributed.fsdp.api import (
 from torch.distributed.fsdp.wrap import ModuleWrapPolicy
 from torch.utils.data.distributed import DistributedSampler
 
-from llama_model import Transformer, TransformerBlock, ModelArgs
+from models.llama2 import Transformer, TransformerBlock, ModelArgs
 from utils import (
     format_metrics_to_gb,
     print_model_info,
