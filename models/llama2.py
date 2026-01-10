@@ -46,7 +46,7 @@ def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0):
         theta (float, optional): Scaling factor for frequency computation. Defaults to 10000.0.
 
     Returns:
-        torch.Tensor: Precomputed frequency tensor\.
+        torch.Tensor: Precomputed frequency tensor.
     """
     freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
     t = torch.arange(end, device=freqs.device)
