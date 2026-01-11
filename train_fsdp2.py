@@ -20,10 +20,15 @@ from utils import (
     seed_all,
     save_fsdp2_model,
     load_fsdp2_model,
+    is_torch_npu_available,
 )
 
-import torch_npu
-from torch_npu.contrib import transfer_to_npu
+if is_torch_npu_available():
+    import torch_npu
+    from torch_npu.contrib import transfer_to_npu
+else:
+    print("NPU backend not available.")
+
 
 def get_args():
     parser = argparse.ArgumentParser(description="PyTorch llama FSDP2 Example")
@@ -93,7 +98,7 @@ def get_args():
 
     args = parser.parse_args()
 
-    seed_all(args.seed, mode=False)
+    seed_all(args.seed, mode=False, is_npu=is_torch_npu_available())
 
     return args
 
@@ -102,7 +107,7 @@ def train_one_epoch(model, loader, optimizer, epoch, rank, args):
     model.train()
     total_loss = 0.0
 
-    if args.profile:
+    if args.profile and is_torch_npu_available():
         experimental_config = torch_npu.profiler._ExperimentalConfig(
             aic_metrics=torch_npu.profiler.AiCMetrics.PipeUtilization,
             profiler_level=torch_npu.profiler.ProfilerLevel.Level1,
@@ -144,7 +149,7 @@ def train_one_epoch(model, loader, optimizer, epoch, rank, args):
         optimizer.step()
         optimizer.zero_grad()
 
-        if args.profile:
+        if args.profile and is_torch_npu_available():
             profiler.step()
 
         # Calculate metrics
@@ -156,7 +161,7 @@ def train_one_epoch(model, loader, optimizer, epoch, rank, args):
                 f"Mem_alloc: {format_metrics_to_gb(torch.cuda.memory_allocated())} GB Mem_reserve: {format_metrics_to_gb(torch.cuda.memory_reserved())} GB"
             )
 
-    if args.profile:
+    if args.profile and is_torch_npu_available():
         profiler.stop()
 
     # Sync metrics across devices

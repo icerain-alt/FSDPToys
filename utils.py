@@ -15,26 +15,41 @@ from torch.utils.checkpoint import checkpoint
 g_gigabyte = 1024**3
 
 
+def is_torch_npu_available() -> bool:
+    """Check if Ascend NPU is available for PyTorch operations.
+
+    Attempts to detect NPU availability by checking for the torch.npu module
+    and its is_available() function.
+
+    Returns:
+        bool: True if NPU is available, False otherwise.
+    """
+    try:
+        if hasattr(torch, "npu") and callable(getattr(torch.npu, "is_available", None)):
+            return torch.npu.is_available()
+        return False
+    except ImportError:
+        return False
+
+
 def print_rank0(msg):
     if torch.distributed.get_rank() == 0:
         print(msg, flush=True)
 
 
-def seed_all(seed=1234, mode=False):
+def seed_all(seed=1234, mode=False, is_npu=False):
     random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.use_deterministic_algorithms(mode)
 
-    try:
+    if is_npu:
         import torch_npu
 
         torch_npu.npu.manual_seed_all(seed)
         torch_npu.npu.manual_seed(seed)
         os.environ["HCCL_DETERMINISTIC"] = str(mode)
-    except ImportError:
-        print("NPU backend not available.")
 
 
 def format_metrics_to_gb(item):
