@@ -177,7 +177,7 @@ def main(rank, world_size):
 
     # Prepare dataset
     train_set = datasets.FakeData(
-        size=100000,
+        size=10000,
         image_size=(1, args.seq_len),
         num_classes=10,
         transform=T.Compose([T.ToTensor(), lambda x: (x * 256).int()]),
