@@ -2,6 +2,7 @@ import os
 import time
 import argparse
 import torch
+import torch.nn.functional as F
 import torchvision.datasets as datasets
 import torchvision.transforms as T
 import torch.distributed as dist
@@ -141,9 +142,10 @@ def train_one_epoch(model, loader, optimizer, epoch, rank, args):
     for batch_idx, (inputs, labels) in enumerate(loader):
         t0 = time.time()
         inputs = inputs.cuda()
+        labels = labels.cuda().repeat(args.seq_len)
 
         outputs = model(inputs.reshape(-1, args.seq_len))
-        loss = outputs.mean()
+        loss = F.cross_entropy(outputs.reshape(-1, outputs.shape[-1]), labels)
 
         loss.backward()
         model.clip_grad_norm_(1.0)
@@ -179,7 +181,7 @@ def main(rank, world_size):
     train_set = datasets.FakeData(
         size=10000,
         image_size=(1, args.seq_len),
-        num_classes=10,
+        num_classes=1000,
         transform=T.Compose([T.ToTensor(), lambda x: (x * 256).int()]),
     )
 
@@ -198,7 +200,7 @@ def main(rank, world_size):
     # Build model
     simple_llama2_config = ModelArgs(
         n_layers=32,
-        vocab_size=32000,
+        vocab_size=100000,
         gradient_checkpointing=args.gradient_checkpointing,
         checkpointing_start_index=args.checkpointing_start_index,
     )
