@@ -363,7 +363,7 @@ class Transformer(nn.Module):
 
         self.norm = RMSNorm(dim=model_args.dim, eps=model_args.norm_eps)
 
-        self.output = nn.Linear(model_args.dim, model_args.vocab_size, bias=False)
+        self.lm_head = nn.Linear(model_args.dim, model_args.vocab_size, bias=False)
         self.init_weights()
 
     def init_weights(self):
@@ -392,7 +392,7 @@ class Transformer(nn.Module):
         final_out_std = self.model_args.dim**-0.5
         cutoff_factor = 3
         nn.init.trunc_normal_(
-            self.output.weight,
+            self.lm_head.weight,
             mean=0.0,
             std=final_out_std,
             a=-cutoff_factor * final_out_std,
@@ -423,9 +423,11 @@ class Transformer(nn.Module):
                 enabled=self.model_args.gradient_checkpointing
                 and (i >= self.model_args.checkpointing_start_index),
             )
-        h = self.norm(h)
-        output = self.output(h)
+        output = self.norm(h)
         return output
+    
+    def compute_logits(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        return self.lm_head(hidden_states)
 
     @classmethod
     def from_model_args(cls, model_args: ModelArgs) -> "Transformer":
@@ -444,4 +446,4 @@ class Transformer(nn.Module):
     def reset_parameters(self):
         self.tok_embeddings.reset_parameters()
         self.norm.reset_parameters()
-        self.output.reset_parameters()
+        self.lm_head.reset_parameters()
