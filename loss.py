@@ -12,8 +12,8 @@ def ce_loss_fun(
     labels: torch.Tensor,
     reduction: str = "sum",
 ) -> torch.Tensor:
-    labels = labels.contiguous().view(-1)
-    hidden_states = hidden_states.contiguous().view(-1, hidden_states.size(-1))
+    labels = labels.contiguous().flatten()
+    hidden_states = hidden_states.contiguous().flatten(0, 1)
     logits = F.linear(hidden_states, weight).float()
     return F.cross_entropy(logits, labels, reduction=reduction)
 
@@ -88,4 +88,4 @@ if __name__ == "__main__":
     loss_gt = ce_loss_fun(hidden_states, head_weight, labels, reduction="mean")
     loss_chunk = chunk_loss_fun(hidden_states, head_weight, labels)
     # Check if the chunk loss is close to the ground truth loss
-    assert torch.allclose(loss_chunk, loss_gt, atol=1e-5)
+    assert torch.allclose(loss_chunk, loss_gt, atol=1e-6)

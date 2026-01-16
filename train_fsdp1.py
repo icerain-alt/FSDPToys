@@ -26,7 +26,7 @@ from utils import (
     save_fsdp_model,
     is_torch_npu_available,
 )
-
+from loss import chunk_loss_fun
 
 if is_torch_npu_available():
     import torch_npu
@@ -103,6 +103,11 @@ def get_args():
         action="store_true",
         help="NPU profiling for performance analysis (default: False)",
     )
+    parser.add_argument(
+        "--chunk_loss",
+        action="store_true",
+        help="Enable chunk loss function (default: False)",
+    )
 
     args = parser.parse_args()
 
@@ -142,10 +147,14 @@ def train_one_epoch(model, loader, optimizer, epoch, rank, args):
     for batch_idx, (inputs, labels) in enumerate(loader):
         t0 = time.time()
         inputs = inputs.cuda()
-        labels = labels.cuda().repeat(args.seq_len)
+        labels = labels[:, None].cuda().repeat(1, args.seq_len)
 
         outputs = model(inputs.reshape(-1, args.seq_len))
-        loss = F.cross_entropy(outputs.reshape(-1, outputs.shape[-1]), labels)
+        if args.chunk_loss:
+            loss = chunk_loss_fun(outputs, model.lm_head.weight, labels)
+        else:
+            logits = model.compute_logits(outputs)
+            loss = F.cross_entropy(logits.flatten(0, 1).float(), labels.flatten())
 
         loss.backward()
         model.clip_grad_norm_(1.0)
