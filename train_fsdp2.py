@@ -16,6 +16,7 @@ from torch.distributed.checkpoint.state_dict import (
 
 from models.llama2 import Transformer, TransformerBlock, ModelArgs
 from utils import (
+    print_rank0,
     format_metrics_to_gb,
     print_model_info,
     seed_all,
@@ -79,12 +80,6 @@ def get_args():
         help="Checkpoint saving frequency (in epochs)",
     )
     parser.add_argument(
-        "--profile_path",
-        type=str,
-        default="profile/llama_7b_fsdp2_base",
-        help="NPU profiling path",
-    )
-    parser.add_argument(
         "--cpu_offload",
         action="store_true",
         help="Offload model params, grads and optimizer states to CPU (default: False)",
@@ -100,14 +95,30 @@ def get_args():
         help="Enable gradient checkpointing (default: False)",
     )
     parser.add_argument(
+        "--chunk_loss",
+        action="store_true",
+        help="Enable chunk loss function (default: False)",
+    )
+    parser.add_argument(
         "--profile",
         action="store_true",
         help="NPU profiling for performance analysis (default: False)",
     )
     parser.add_argument(
-        "--chunk_loss",
+        "--profile_path",
+        type=str,
+        default="profile/llama_7b_fsdp2_base",
+        help="Pytorch profiling path",
+    )
+    parser.add_argument(
+        "--snapshot",
         action="store_true",
-        help="Enable chunk loss function (default: False)",
+        help="Snapshot for CUDA memory usage. https://docs.pytorch.org/memory_viz",
+    )
+    parser.add_argument(
+        "--snapshot_step",
+        type=int,
+        default=10,
     )
 
     args = parser.parse_args()
@@ -127,6 +138,10 @@ def train_one_epoch(model, loader, optimizer, epoch, rank, args):
 
     for batch_idx, (inputs, labels) in enumerate(loader):
         t0 = time.time()
+
+        if args.snapshot and batch_idx == args.snapshot_step:
+            torch.cuda.memory._record_memory_history(max_entries=80000)
+
         inputs = inputs.cuda()
         labels = labels[:, None].cuda().repeat(1, args.seq_len)
 
@@ -149,15 +164,17 @@ def train_one_epoch(model, loader, optimizer, epoch, rank, args):
 
         if args.profile:
             profiler.step()
+        if args.snapshot and batch_idx == args.snapshot_step:
+            torch.cuda.memory._dump_snapshot(f"snapshot_iter{batch_idx}_rank{rank}.pickle")
+            torch.cuda.memory._record_memory_history(enabled=None)
 
         # Calculate metrics
         total_loss += loss.item()
 
-        if rank == 0:
-            print(
-                f"Epoch: {epoch} | Batch: {batch_idx}/{len(loader)} | Elapsed Time: {time.time() - t0:.3f} s | Loss: {loss.item():.4f} | "
-                f"Mem_alloc: {format_metrics_to_gb(torch.cuda.memory_allocated())} GB Mem_reserve: {format_metrics_to_gb(torch.cuda.memory_reserved())} GB"
-            )
+        print_rank0(
+            f"Epoch: {epoch} | Batch: {batch_idx}/{len(loader)} | Elapsed Time: {time.time() - t0:.3f} s | Loss: {loss.item():.4f} | "
+            f"Mem_alloc: {format_metrics_to_gb(torch.cuda.memory_allocated())} GB Mem_reserve: {format_metrics_to_gb(torch.cuda.memory_reserved())} GB"
+        )
 
     if args.profile:
         profiler.stop()

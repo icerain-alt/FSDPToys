@@ -1,4 +1,5 @@
 from .utils import (
+    print_rank0,
     format_metrics_to_gb,
     print_model_info,
     seed_all,
