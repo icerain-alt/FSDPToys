@@ -24,7 +24,7 @@ from utils import (
     is_torch_npu_available,
     build_profiler,
 )
-from loss import chunk_loss_fun
+from accelerate import offload_fsdp_optimizer, load_fsdp_optimizer, chunk_loss_fun
 
 if is_torch_npu_available():
     import torch_npu
@@ -88,6 +88,11 @@ def get_args():
         "--cpu_offload",
         action="store_true",
         help="Offload model params, grads and optimizer states to CPU (default: False)",
+    )
+    parser.add_argument(
+        "--optimizer_offload",
+        action="store_true",
+        help="Offload optimizer states to CPU (default: False); Conflicts with CPU offload.",
     )
     parser.add_argument(
         "--gradient_checkpointing",
@@ -189,8 +194,8 @@ def main(rank, world_size):
 
     # Build model
     simple_llama2_config = ModelArgs(
-        n_layers=1,
-        vocab_size=1000,
+        n_layers=32,
+        vocab_size=100000,
         gradient_checkpointing=args.gradient_checkpointing,
         checkpointing_start_index=args.checkpointing_start_index,
     )
@@ -250,8 +255,15 @@ def main(rank, world_size):
                 flush=True,
             )
 
-    # Training setup
+    # Optimizer setup
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, fused=True)
+    if args.optimizer_offload:
+        optimizer.register_step_pre_hook(
+            lambda optim, args, kwargs: load_fsdp_optimizer(optim, torch.cuda.current_device())
+        )
+        optimizer.register_step_post_hook(
+            lambda optim, args, kwargs: offload_fsdp_optimizer(optim)
+        )
 
     # Training loop
     for epoch in range(args.num_epochs):
