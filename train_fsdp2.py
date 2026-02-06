@@ -102,13 +102,12 @@ def get_args():
     parser.add_argument(
         "--profile",
         action="store_true",
-        help="NPU profiling for performance analysis (default: False)",
+        help="Pytorch profiling for performance analysis (default: False)",
     )
     parser.add_argument(
         "--profile_path",
         type=str,
         default="profile/llama_7b_fsdp2_base",
-        help="Pytorch profiling path",
     )
     parser.add_argument(
         "--snapshot",
