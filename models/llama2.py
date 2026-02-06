@@ -425,7 +425,7 @@ class Transformer(nn.Module):
             )
         output = self.norm(h)
         return output
-    
+
     def compute_logits(self, hidden_states: torch.Tensor) -> torch.Tensor:
         return self.lm_head(hidden_states)
 

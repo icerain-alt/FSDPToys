@@ -165,7 +165,9 @@ def train_one_epoch(model, loader, optimizer, epoch, rank, args):
         if args.profile:
             profiler.step()
         if args.snapshot and batch_idx == args.snapshot_step:
-            torch.cuda.memory._dump_snapshot(f"snapshot_iter{batch_idx}_rank{rank}.pickle")
+            torch.cuda.memory._dump_snapshot(
+                f"snapshot_iter{batch_idx}_rank{rank}.pickle"
+            )
             torch.cuda.memory._record_memory_history(enabled=None)
 
         # Calculate metrics
@@ -193,7 +195,9 @@ def main(rank, world_size):
         size=10000,
         image_size=(1, args.seq_len),
         num_classes=1000,
-        transform=T.Compose([T.ToTensor(), lambda x: (x * 256).int()]),  # 256 for pixel values in [0, 255]
+        transform=T.Compose(
+            [T.ToTensor(), lambda x: (x * 256).int()]
+        ),  # 256 for pixel values in [0, 255]
     )
 
     train_sampler = DistributedSampler(
@@ -235,9 +239,9 @@ def main(rank, world_size):
     settings = dict(
         mesh=mesh_2d,
         mp_policy=MixedPrecisionPolicy(
-            param_dtype=torch.bfloat16, 
+            param_dtype=torch.bfloat16,
             reduce_dtype=torch.float32,
-            cast_forward_inputs=False
+            cast_forward_inputs=False,
         ),
         offload_policy=CPUOffloadPolicy() if args.cpu_offload else None,
     )
@@ -252,7 +256,7 @@ def main(rank, world_size):
             model = model.to(device="cuda", non_blocking=True)
         else:
             model = model.to_empty(device="cuda")
-            
+
     # Loads the full state dict (could be only on rank 0) into the sharded model
     options = StateDictOptions(
         full_state_dict=True, cpu_offload=args.cpu_offload, broadcast_from_rank0=True
@@ -277,7 +281,9 @@ def main(rank, world_size):
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, fused=True)
     if args.optimizer_offload:
         optimizer.register_step_pre_hook(
-            lambda optim, args, kwargs: load_fsdp_optimizer(optim, torch.cuda.current_device())
+            lambda optim, args, kwargs: load_fsdp_optimizer(
+                optim, torch.cuda.current_device()
+            )
         )
         optimizer.register_step_post_hook(
             lambda optim, args, kwargs: offload_fsdp_optimizer(optim)

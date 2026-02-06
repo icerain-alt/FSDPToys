@@ -246,7 +246,9 @@ def main(rank, world_size):
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, fused=True)
     if args.optimizer_offload:
         optimizer.register_step_pre_hook(
-            lambda optim, args, kwargs: load_fsdp_optimizer(optim, torch.cuda.current_device())
+            lambda optim, args, kwargs: load_fsdp_optimizer(
+                optim, torch.cuda.current_device()
+            )
         )
         optimizer.register_step_post_hook(
             lambda optim, args, kwargs: offload_fsdp_optimizer(optim)
