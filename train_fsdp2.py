@@ -232,7 +232,9 @@ def main(rank, world_size):
     settings = dict(
         mesh=mesh_2d,
         mp_policy=MixedPrecisionPolicy(
-            param_dtype=torch.bfloat16, reduce_dtype=torch.float32
+            param_dtype=torch.bfloat16, 
+            reduce_dtype=torch.float32,
+            cast_forward_inputs=False
         ),
         offload_policy=CPUOffloadPolicy() if args.cpu_offload else None,
     )
