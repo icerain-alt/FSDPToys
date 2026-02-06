@@ -78,6 +78,22 @@ def gradient_checkpointing(module, *args, enabled, **kwargs):
         return module(*args, **kwargs)
 
 
+def fsdp2_clip_grad_norm_(parameters, max_norm, norm_type=2.0, error_if_nonfinite=False, foreach=None):
+    """torch.nn.utils.clip_grad_norm_ cann't run on cpu parameter DTensor"""
+    from torch.nn.utils.clip_grad import _clip_grads_with_norm_, _get_total_norm
+
+    if isinstance(parameters, torch.Tensor):
+        parameters = [parameters]
+    else:
+        # prevent generators from being exhausted
+        parameters = list(parameters)
+    grads = [p.grad for p in parameters if p.grad is not None]
+    total_norm = _get_total_norm(grads, norm_type, error_if_nonfinite, foreach)
+    total_norm = total_norm.to(torch.cuda.current_device(), non_blocking=True)
+    _clip_grads_with_norm_(parameters, max_norm, total_norm, foreach)
+    return total_norm
+
+
 def set_modules_to_forward_prefetch(model, num_to_forward_prefetch=1):
     # FSDP2: Explicit prefetching params for forward
     for i, layer in enumerate(model.layers):

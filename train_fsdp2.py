@@ -24,6 +24,7 @@ from utils import (
     load_fsdp2_model,
     is_torch_npu_available,
     build_profiler,
+    fsdp2_clip_grad_norm_,
 )
 from accelerate import offload_fsdp_optimizer, load_fsdp_optimizer, chunk_loss_fun
 
@@ -153,10 +154,9 @@ def train_one_epoch(model, loader, optimizer, epoch, rank, args):
 
         loss.backward()
 
-        # TODO: fsdp2 cpu offload not support clip grad norm
+        # fsdp2 cpu offload not support torch.nn.utils.clip_grad_norm_
         # https://github.com/pytorch/pytorch/issues/148532
-        if not args.cpu_offload:
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        fsdp2_clip_grad_norm_(model.parameters(), 1.0)
 
         optimizer.step()
         optimizer.zero_grad()

@@ -9,5 +9,6 @@ from .utils import (
     load_fsdp2_model,
     is_torch_npu_available,
     gradient_checkpointing,
+    fsdp2_clip_grad_norm_,
 )
 from .profiler import build_profiler
