@@ -1,4 +1,4 @@
-FSDPToys 是一个基于 PyTorch FSDP (Fully Sharded Data Parallel) 的大语言模型训练框架，专注于提供简单、高效、可扩展的分布式训练实现。
+FSDPToys 是一个基于 PyTorch FSDP (Fully Sharded Data Parallel) 的大模型训练框架，专注于提供简单、高效、可扩展的分布式训练实现。
 
 ## 功能特性
 

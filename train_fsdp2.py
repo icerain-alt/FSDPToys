@@ -188,12 +188,12 @@ def train_one_epoch(model, loader, optimizer, epoch, rank, args):
 def main(rank, world_size):
     args = get_args()
 
-    # Prepare dataset
+    # Prepare dataset (fake image data)
     train_set = datasets.FakeData(
         size=10000,
         image_size=(1, args.seq_len),
         num_classes=1000,
-        transform=T.Compose([T.ToTensor(), lambda x: (x * 256).int()]),
+        transform=T.Compose([T.ToTensor(), lambda x: (x * 256).int()]),  # 256 for pixel values in [0, 255]
     )
 
     train_sampler = DistributedSampler(
@@ -252,6 +252,7 @@ def main(rank, world_size):
             model = model.to(device="cuda", non_blocking=True)
         else:
             model = model.to_empty(device="cuda")
+            
     # Loads the full state dict (could be only on rank 0) into the sharded model
     options = StateDictOptions(
         full_state_dict=True, cpu_offload=args.cpu_offload, broadcast_from_rank0=True
