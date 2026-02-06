@@ -1,4 +1,4 @@
-from utils.utils import (
+from .utils import (
     format_metrics_to_gb,
     print_model_info,
     seed_all,
@@ -9,3 +9,4 @@ from utils.utils import (
     is_torch_npu_available,
     gradient_checkpointing
 )
+from .profiler import build_profiler

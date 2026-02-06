@@ -25,14 +25,16 @@ from utils import (
     load_fsdp_model,
     save_fsdp_model,
     is_torch_npu_available,
+    build_profiler,
 )
 from loss import chunk_loss_fun
 
 if is_torch_npu_available():
     import torch_npu
     from torch_npu.contrib import transfer_to_npu
+    print("CUDA backend not available. Using NPU backend.")
 else:
-    print("NPU backend not available.")
+    print("NPU backend not available. Using CUDA backend.")
 
 
 def get_args():
@@ -62,19 +64,16 @@ def get_args():
         "--checkpointing_start_index",
         type=int,
         default=0,
-        help="Gradient checkpointing start index",
+        help="Checkpointing start from which layer",
     )
     parser.add_argument(
         "--load_path",
         type=str,
-        default="ckpts/fsdp1_full/llama_checkpoint_epoch0",
+        default="ckpts/fsdp1/llama_checkpoint",
         help="Checkpoint loading path",
     )
     parser.add_argument(
-        "--save_path",
-        type=str,
-        default="ckpts/fsdp1_full",
-        help="Checkpoint saving path",
+        "--save_path", type=str, default="ckpts/fsdp1", help="Checkpoint saving path"
     )
     parser.add_argument(
         "--save_freq",
@@ -119,29 +118,9 @@ def get_args():
 def train_one_epoch(model, loader, optimizer, epoch, rank, args):
     model.train()
     total_loss = 0.0
-    if args.profile and is_torch_npu_available():
-        experimental_config = torch_npu.profiler._ExperimentalConfig(
-            aic_metrics=torch_npu.profiler.AiCMetrics.PipeUtilization,
-            profiler_level=torch_npu.profiler.ProfilerLevel.Level1,
-            l2_cache=False,
-            data_simplification=True,
-        )
-        profiler = torch_npu.profiler.profile(
-            activities=[
-                torch_npu.profiler.ProfilerActivity.CPU,
-                torch_npu.profiler.ProfilerActivity.NPU,
-            ],
-            record_shapes=False,
-            profile_memory=True,
-            with_stack=False,
-            experimental_config=experimental_config,
-            schedule=torch_npu.profiler.schedule(
-                wait=0, warmup=1, active=1, repeat=1, skip_first=10
-            ),
-            on_trace_ready=torch_npu.profiler.tensorboard_trace_handler(
-                args.profile_path
-            ),
-        )
+
+    if args.profile:
+        profiler = build_profiler(profile_path=args.profile_path)
         profiler.start()
 
     for batch_idx, (inputs, labels) in enumerate(loader):
@@ -162,7 +141,7 @@ def train_one_epoch(model, loader, optimizer, epoch, rank, args):
         optimizer.step()
         optimizer.zero_grad()
 
-        if args.profile and is_torch_npu_available():
+        if args.profile:
             profiler.step()
 
         # Calculate metrics
@@ -174,7 +153,7 @@ def train_one_epoch(model, loader, optimizer, epoch, rank, args):
                 f"Mem_alloc: {format_metrics_to_gb(torch.cuda.memory_allocated())} GB Mem_reserve: {format_metrics_to_gb(torch.cuda.memory_reserved())} GB"
             )
 
-    if args.profile and is_torch_npu_available():
+    if args.profile:
         profiler.stop()
 
     # Sync metrics across devices
@@ -197,6 +176,7 @@ def main(rank, world_size):
     train_sampler = DistributedSampler(
         train_set, num_replicas=world_size, rank=rank, shuffle=True
     )
+
     train_loader = torch.utils.data.DataLoader(
         train_set,
         batch_size=args.batch_size,
