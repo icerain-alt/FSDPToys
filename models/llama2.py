@@ -7,8 +7,7 @@ from typing import Optional, Tuple
 import torch
 from torch import nn
 import torch.nn.functional as F
-from utils import gradient_checkpointing
-
+from accelerate import gradient_checkpointing
 
 @dataclass
 class ModelArgs:

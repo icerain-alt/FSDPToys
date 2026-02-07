@@ -9,7 +9,6 @@ from torch.distributed.fsdp import (
     FullStateDictConfig,  # general model non-sharded, non-flattened params
     ShardedStateDictConfig,  # un-flattened param but shards, usable by other parallel schemes.
 )
-from torch.utils.checkpoint import checkpoint
 
 
 g_gigabyte = 1024**3
@@ -69,13 +68,6 @@ def print_model_info(model):
     print("\n" + "=" * 50, f"{'Parameter Info':^10}", "=" * 50)
     print(f"Total Parameters: {total_params / 1e6:.2f}M")
     print(f"Trainable Parameters: {trainable_params / 1e6:.2f}M")
-
-
-def gradient_checkpointing(module, *args, enabled, **kwargs):
-    if enabled:
-        return checkpoint(module, *args, use_reentrant=False, **kwargs)
-    else:
-        return module(*args, **kwargs)
 
 
 def fsdp2_clip_grad_norm_(parameters, max_norm, norm_type=2.0, error_if_nonfinite=False, foreach=None):
