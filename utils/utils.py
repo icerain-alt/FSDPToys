@@ -74,7 +74,7 @@ def print_model_info(model):
 def print_tensor(name, tensor_data, rank):
     log_file = f"logs/rank_{rank}.log"
     try:
-        with open(log_file, 'a', encoding='utf-8') as f:
+        with open(log_file, "a", encoding="utf-8") as f:
             # Single tensor
             if isinstance(tensor_data, torch.Tensor):
                 if tensor_data.numel() == 0:
@@ -90,7 +90,9 @@ def print_tensor(name, tensor_data, rank):
                 for idx, elem in enumerate(tensor_data):
                     print_tensor(f"{name}[{idx}]", elem, rank)
             else:
-                print(f"{name} | Type: {type(tensor_data).__name__}", file=f, flush=True)
+                print(
+                    f"{name} | Type: {type(tensor_data).__name__}", file=f, flush=True
+                )
     except Exception as e:
         print(f"[WARN] Write log failed: {e}", flush=True)
 
@@ -99,17 +101,20 @@ def create_hook(name, rank, hook_type):
     def hook(module, inputs, outputs):
         print_tensor(f"[FORWARD] {name} - Inputs", inputs, rank)
         print_tensor(f"[FORWARD] {name} - Outputs", outputs, rank)
+
     return hook
 
 
 def register_model_hooks(model):
-    rank =  dist.get_rank() if dist.is_initialized() else 0
+    rank = dist.get_rank() if dist.is_initialized() else 0
     for name, module in model.named_modules():
         # Forward hook
         module.register_forward_hook(create_hook(name, rank, "forward"))
 
 
-def fsdp2_clip_grad_norm_(parameters, max_norm, norm_type=2.0, error_if_nonfinite=False, foreach=None):
+def fsdp2_clip_grad_norm_(
+    parameters, max_norm, norm_type=2.0, error_if_nonfinite=False, foreach=None
+):
     """torch.nn.utils.clip_grad_norm_ cann't run on cpu parameter DTensor"""
     from torch.nn.utils.clip_grad import _clip_grads_with_norm_, _get_total_norm
 

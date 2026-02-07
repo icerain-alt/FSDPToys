@@ -36,7 +36,7 @@ def copy_fsdp_comm_only_stream(src_comm_ctx, dst_comm_ctx):
 def _init_shared_state(self) -> None:
     # communication context is shared among all FSDP instances
     global COMM_CONTEXT
-    if COMM_CONTEXT:
+    if COMM_CONTEXT is not None:
         self._comm_ctx = copy_fsdp_comm_only_stream(COMM_CONTEXT, self._comm_ctx)
     else:
         self._comm_ctx.lazy_init(self._device)
