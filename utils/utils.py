@@ -2,6 +2,7 @@ import os
 import random
 import torch
 import numpy as np
+import torch.distributed as dist
 from torch.distributed.tensor import DTensor
 from torch.distributed.fsdp import (
     FullyShardedDataParallel as FSDP,
@@ -68,6 +69,44 @@ def print_model_info(model):
     print("\n" + "=" * 50, f"{'Parameter Info':^10}", "=" * 50)
     print(f"Total Parameters: {total_params / 1e6:.2f}M")
     print(f"Trainable Parameters: {trainable_params / 1e6:.2f}M")
+
+
+def print_tensor(name, tensor_data, rank):
+    log_file = f"logs/rank_{rank}.log"
+    try:
+        with open(log_file, 'a', encoding='utf-8') as f:
+            # Single tensor
+            if isinstance(tensor_data, torch.Tensor):
+                if tensor_data.numel() == 0:
+                    return
+                log_line = (
+                    f"{name} | Shape: {tuple(tensor_data.shape)} | Dtype: {tensor_data.dtype} | "
+                    f"Mean: {tensor_data.float().mean().item():.5f} | "
+                    f"Max: {tensor_data.max().item():.5f} | Min: {tensor_data.min().item():.5f}"
+                )
+                print(log_line, file=f, flush=True)
+            # List/Tuple
+            elif isinstance(tensor_data, (list, tuple)):
+                for idx, elem in enumerate(tensor_data):
+                    print_tensor(f"{name}[{idx}]", elem, rank)
+            else:
+                print(f"{name} | Type: {type(tensor_data).__name__}", file=f, flush=True)
+    except Exception as e:
+        print(f"[WARN] Write log failed: {e}", flush=True)
+
+
+def create_hook(name, rank, hook_type):
+    def hook(module, inputs, outputs):
+        print_tensor(f"[FORWARD] {name} - Inputs", inputs, rank)
+        print_tensor(f"[FORWARD] {name} - Outputs", outputs, rank)
+    return hook
+
+
+def register_model_hooks(model):
+    rank =  dist.get_rank() if dist.is_initialized() else 0
+    for name, module in model.named_modules():
+        # Forward hook
+        module.register_forward_hook(create_hook(name, rank, "forward"))
 
 
 def fsdp2_clip_grad_norm_(parameters, max_norm, norm_type=2.0, error_if_nonfinite=False, foreach=None):

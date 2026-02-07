@@ -8,7 +8,7 @@ from .utils import (
     save_fsdp2_model,
     load_fsdp2_model,
     is_torch_npu_available,
-    gradient_checkpointing,
     fsdp2_clip_grad_norm_,
+    register_model_hooks,
 )
 from .profiler import build_profiler
