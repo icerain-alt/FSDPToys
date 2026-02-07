@@ -1,5 +1,4 @@
 #!/bin/bash
-set -x
 
 mkdir -p logs
 
@@ -24,7 +23,7 @@ torchrun \
   --nproc_per_node=8 \
   train_fsdp2.py \
   --batch_size=4 \
-  --seq_len=4000 \
+  --seq_len=4096 \
   --fsdp_size=8 \
   --gradient_checkpointing \
   --chunk_loss \
