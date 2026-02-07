@@ -215,7 +215,7 @@ def main(rank, world_size):
     # Build model
     simple_llama2_config = ModelArgs(
         n_layers=32,
-        vocab_size=100000,
+        vocab_size=32000,
         gradient_checkpointing=args.gradient_checkpointing,
         checkpointing_start_index=args.checkpointing_start_index,
     )
