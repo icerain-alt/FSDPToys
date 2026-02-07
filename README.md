@@ -6,6 +6,7 @@ FSDPToys is a lightweight repository for large model training based on PyTorch F
 
 - **Efficient Distributed Training**: Native PyTorch FSDP/FSDP2 implementation with sharded parameters, gradients, and optimizer states
 - **Hybrid Sharding (HSDP)**: Flexible sharding strategies via Device Mesh configuration
+- **Meta Device Initialization**: Memory-efficient model initialization using PyTorch meta device for large-scale model loading
 - **Memory Optimization**:
   - Gradient Checkpointing
   - CPU Offloading (parameters, gradients, optimizer states)
@@ -93,7 +94,7 @@ torchrun --nnodes=1 --nproc_per_node=8 train_fsdp2.py \
 
 ## 💡 Memory Optimization Tips
 
-1. `fsdp_size=world_size`
+1. `--fsdp_size=world_size`
 2. `--gradient_checkpointing`
-3. ` --chunk_loss`
+3. `--chunk_loss`
 4. `--cpu_offload` or `--optimizer_offload`
